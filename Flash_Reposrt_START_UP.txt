@@ -1,0 +1,56 @@
+%let tera_id = RESxxxx  ;
+%LET tera_pwd =  xxxxxxx ;
+
+/*%let M_FSC_QTR_BGN_DT = %STR('2015-05-02');*/
+  %let M_FSC_QTR_BGN_DT = %STR('2015-08-01');
+/*%let M_FSC_QTR_BGN_DT = %STR('2015-10-31');*/
+/*%let M_FSC_QTR_BGN_DT = %STR('2016-01-30');*/
+
+libname mydbcon teradata user=&tera_id. password= "&tera_pwd." tdpid=terapsa database=lowes_vm;
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database= EA_PERM tdpid=terapsa);
+	create table LOWES_FSC_CAL as
+		select * from connection to terapsa
+			( select * from   lowes_vm.i0036a_fsc_cal_cnv  	
+				where cal_dt >= '2013-01-01'
+				order by cal_dt					   
+			);
+
+	disconnect from terapsa;
+quit;
+DATA _NULL_;
+CALL SYMPUT('REPORT_CAL_DT',PUT(INTNX('DAY',TODAY(),-3),date9.));
+RUN;
+%PUT &REPORT_CAL_DT.;
+
+DATA LOWES_FSC_CAL;
+SET LOWES_FSC_CAL(WHERE= ( CAL_DT = "&REPORT_CAL_DT."d));
+	M_FSC_YR_BGN_DT = COMPRESS("'"||put(FSC_YR_BGN_DT,yymmddD10.)||"'");
+	M_FSC_YR_END_DT = COMPRESS("'"||put(CAL_DT,yymmddD10.)||"'");
+	M_FSC_WK_BGN_DT = COMPRESS("'"||put(FSC_WK_BGN_DT,yymmddD10.)||"'");
+	M_FSC_WK_END_DT = COMPRESS("'"||put(FSC_WK_END_DT,yymmddD10.)||"'");
+RUN;
+
+Proc sql;
+select 
+	M_FSC_YR_BGN_DT,
+	M_FSC_YR_END_DT,
+	M_FSC_WK_BGN_DT,
+	M_FSC_WK_END_DT
+INTO 
+	:M_FSC_YR_BGN_DT ,  /*YEAR */
+	:M_FSC_YR_END_DT ,
+	:M_FSC_WK_BGN_DT ,  /*WEEK*/
+	:M_FSC_WK_END_DT
+FROM
+	LOWES_FSC_CAL
+;
+QUIT;
+/*PRINT THE VALUES TO LOG VALIDATE*/
+
+%PUT    YEAR_START_DATE =  &M_FSC_YR_BGN_DT.  ;
+%PUT    YEAR_END_DATE   =  &M_FSC_YR_END_DT. ;
+
+%PUT	WEEK_START_DATE =  &M_FSC_WK_BGN_DT. ;
+%PUT	WEEK_END_DATE   =  &M_FSC_WK_END_DT. ;
+;

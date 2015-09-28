@@ -1,0 +1,620 @@
+
+/*************************** WEEKLY ***********************************************************/; 
+
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database=lowes_temp tdpid=terapsa);
+
+	create table WEEKLY_DATA as
+		select * from connection to terapsa
+			( 
+ 				SELECT DISTINCT 
+					                TRIM(BOTH ' '
+					                     FROM a15.MER_DVS_DES_TXT) MER_DVS_DES_TXT,
+					                pa11.INVOICECOUNTPRODUCT INVOICECOUNTPRODUCT,
+					                pa12.LYWEEKINVOICECOUNTPRODUCT LYWEEKINVOICECOUNTPRODUCT,
+					                pa13.SALES SALES,
+					                pa14.LYWEEKLYSALES LYWEEKLYSALES
+					FROM
+					  (SELECT a12.MER_DVS_NBR MER_DVS_NBR,
+					          Cast((Count(Distinct(trim(Cast((ZeroIfNull(a11.IVO_NBR)) AS Char(10))) || trim(Cast((ZeroIfNull(a11.IVO_SEQ_NBR)) AS Char(5))) || trim(Cast((ZeroIfNull(a11.LCT_NBR)) AS Char(5))) || Cast((a11.CAL_DT) AS Char(10)) || Cast((a13.BUS_DT) AS Char(10))))) AS Integer) INVOICECOUNTPRODUCT
+					   FROM Lowes_VM.I0002G_IVO_DTL a11
+					   JOIN LOWES_VM.I0041A_ITM_HRC a12 ON (a11.ITM_NBR = a12.ITM_NBR)
+					   JOIN LOWES_VM.I0036K_FSC_CAL_CNV a13 ON (a11.BUS_DT = a13.BUS_DT)
+					   WHERE (a13.FSC_WK_END_DT BETWEEN DATE &M_FSC_WK_BGN_DT. AND DATE &M_FSC_WK_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3)
+					          AND a11.TNS_TYP_CD IN (1)
+					          AND (NOT a11.IVO_NBR = 1))
+					   GROUP BY a12.MER_DVS_NBR ) pa11
+					FULL OUTER JOIN
+					  (SELECT a14.MER_DVS_NBR MER_DVS_NBR,
+					          Cast((Count(Distinct(trim(Cast((ZeroIfNull(a11.IVO_NBR)) AS Char(10))) || trim(Cast((ZeroIfNull(a11.IVO_SEQ_NBR)) AS Char(5))) || trim(Cast((ZeroIfNull(a11.LCT_NBR)) AS Char(5))) || Cast((a11.CAL_DT) AS Char(10)) || Cast((a11.BUS_DT) AS Char(10))))) AS Integer) LYWEEKINVOICECOUNTPRODUCT
+					   FROM Lowes_VM.I0002G_IVO_DTL a11
+					   JOIN LOWES_VM.I0036K_FSC_CAL_CNV a12 ON (a11.BUS_DT = a12.BUS_DT)
+					   JOIN LOWES_VM.I0152A_TYL_FSC_WK a13 ON (a12.FSC_WK_END_DT = a13.LY_FSC_WK_END_DT)
+					   JOIN LOWES_VM.I0041A_ITM_HRC a14 ON (a11.ITM_NBR = a14.ITM_NBR)
+					   WHERE (a13.FSC_WK_END_DT BETWEEN DATE &M_FSC_WK_BGN_DT. AND DATE &M_FSC_WK_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3)
+					          AND a11.TNS_TYP_CD IN (1)
+					          AND (NOT a11.IVO_NBR = 1))
+					   GROUP BY a14.MER_DVS_NBR ) pa12 ON (pa11.MER_DVS_NBR = pa12.MER_DVS_NBR)
+					FULL OUTER JOIN
+					  (SELECT a12.MER_DVS_NBR MER_DVS_NBR,
+					          sum(a11.TOT_SAL_AMT) SALES
+					   FROM Lowes_VM.I0836A_WK_LCT_MSD_CMA_SAL_SMY a11
+					   JOIN LOWES_VM.I0044A_MER_SBO_DVS a12 ON (a11.MER_SBO_DVS_NBR = a12.MER_SBO_DVS_NBR)
+					   WHERE (a11.FSC_WK_END_DT BETWEEN DATE &M_FSC_WK_BGN_DT. AND DATE &M_FSC_WK_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3))
+					   GROUP BY a12.MER_DVS_NBR ) pa13 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR) = pa13.MER_DVS_NBR)
+					FULL OUTER JOIN
+					  (SELECT a13.MER_DVS_NBR MER_DVS_NBR,
+					          sum(a11.TOT_SAL_AMT) LYWEEKLYSALES
+					   FROM Lowes_VM.I0836A_WK_LCT_MSD_CMA_SAL_SMY a11
+					   JOIN LOWES_VM.I0152A_TYL_FSC_WK a12 ON (a11.FSC_WK_END_DT = a12.LY_FSC_WK_END_DT)
+					   JOIN LOWES_VM.I0044A_MER_SBO_DVS a13 ON (a11.MER_SBO_DVS_NBR = a13.MER_SBO_DVS_NBR)
+					   WHERE (a12.FSC_WK_END_DT BETWEEN DATE &M_FSC_WK_BGN_DT. AND DATE &M_FSC_WK_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3))
+					   GROUP BY a13.MER_DVS_NBR ) pa14 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR, pa13.MER_DVS_NBR) = pa14.MER_DVS_NBR)
+					JOIN LOWES_VM.I0043A_MER_DVS a15 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR, pa13.MER_DVS_NBR, pa14.MER_DVS_NBR) = a15.MER_DVS_NBR)
+			);
+
+	disconnect from terapsa;
+
+quit;
+ 
+
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database=lowes_temp tdpid=terapsa);
+
+	create table WEEKLY_DATA_TOTAL as
+		select * from connection to terapsa
+			( 
+
+		select    
+						coalesce(pa11.FSC_WK_END_DT, pa12.FSC_WK_END_DT)  FSC_WK_END_DT,
+		                pa11.INVOICECOUNT  INVOICECOUNT,
+		                pa12.LYWEEKLYINVOICECOUNT  LYWEEKLYINVOICECOUNT,
+		                pa11.SALES  SALES,
+		                pa12.LYWEEKLYSALES  LYWEEKLYSALES
+		from      (select  a12.FSC_WK_END_DT  FSC_WK_END_DT,
+		                                sum(a11.CUS_CNT)  INVOICECOUNT,
+		                                sum(a11.TOT_SAL_AMT)  SALES
+		                from      LOWES_VM.I0366J_DAL_LCT_CUS_SAL_SMY     a11
+		                                join        LOWES_VM.I0036K_FSC_CAL_CNV         a12
+		                                  on         (a11.BUS_DT = a12.BUS_DT)
+		                where   (a12.FSC_WK_END_DT between DATE &M_FSC_WK_BGN_DT. AND DATE &M_FSC_WK_END_DT.
+		                and a11.CRN_YR_CMA_LCT_CD in (3))
+		                group by              a12.FSC_WK_END_DT
+		                )              pa11
+		                full outer join     (select  a13.FSC_WK_END_DT  FSC_WK_END_DT,
+		                                sum(a11.CUS_CNT)  LYWEEKLYINVOICECOUNT,
+		                                sum(a11.TOT_SAL_AMT)  LYWEEKLYSALES
+		                from      LOWES_VM.I0366J_DAL_LCT_CUS_SAL_SMY     a11
+		                                join        LOWES_VM.I0036K_FSC_CAL_CNV         a12
+		                                  on         (a11.BUS_DT = a12.BUS_DT)
+		                                join        LOWES_VM.I0152A_TYL_FSC_WK            a13
+		                                  on         (a12.FSC_WK_END_DT = a13.LY_FSC_WK_END_DT)
+		                where   (a13.FSC_WK_END_DT between DATE &M_FSC_WK_BGN_DT. AND DATE &M_FSC_WK_END_DT.
+		                and a11.CRN_YR_CMA_LCT_CD in (3))
+		                group by              a13.FSC_WK_END_DT
+		                )              pa12
+		                  on         (pa11.FSC_WK_END_DT = pa12.FSC_WK_END_DT)
+
+			);
+
+	disconnect from terapsa;
+
+quit;
+
+ 
+data WEEKLY_DATA_TOTAL ;
+set WEEKLY_DATA_TOTAL ;
+MER_DVS_DES_TXT = "Total";
+drop FSC_WK_END_DT;
+rename INVOICECOUNT	= INVOICECOUNTPRODUCT ;
+rename  LYWEEKLYINVOICECOUNT =LYWEEKINVOICECOUNTPRODUCT ;
+run;
+ 
+
+%MACRO CALC_METRICS(FREQ_TYPE);
+data opt_&FREQ_TYPE.(DROP= SALES  LYWEEKLYSALES  );
+	set &FREQ_TYPE.;
+	Product_VAR = (INVOICECOUNTPRODUCT - LYWEEKINVOICECOUNTPRODUCT ) / LYWEEKINVOICECOUNTPRODUCT ;
+	TY_AVG_AMT =  SALES / INVOICECOUNTPRODUCT ;
+	LY_AVG_AMT =  LYWEEKLYSALES / LYWEEKINVOICECOUNTPRODUCT ;
+	TKT_AMT_VAR = (TY_AVG_AMT - LY_AVG_AMT ) / LY_AVG_AMT ;
+
+run;
+
+
+%MEND;
+
+%CALC_METRICS(WEEKLY_DATA);
+%CALC_METRICS(WEEKLY_DATA_TOTAL);
+proc sort data=opt_WEEKLY_DATA ;
+by mer_dvs_des_txt;
+run;
+PROC APPEND  BASE=opt_WEEKLY_DATA DATA= opt_WEEKLY_DATA_TOTAL FORCE;
+RUN;
+
+/****************************** QTR *****************************************************/;
+ 
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database=lowes_temp tdpid=terapsa);
+
+	create table QTR_DATA as
+		select * from connection to terapsa
+			( 
+
+ 				SELECT DISTINCT 
+					                TRIM(BOTH ' '
+					                     FROM a15.MER_DVS_DES_TXT) MER_DVS_DES_TXT,
+					                pa11.INVOICECOUNTPRODUCT as INVOICECOUNT,
+					                pa12.LYWEEKINVOICECOUNTPRODUCT as LYYEARINVOICECOUNT,
+					                pa13.SALES as SALES,
+					                pa14.LYYEARSALES as LYYEARSALES
+					FROM
+					  (SELECT a12.MER_DVS_NBR MER_DVS_NBR,
+					          Cast((Count(Distinct(trim(Cast((ZeroIfNull(a11.IVO_NBR)) AS Char(10))) || trim(Cast((ZeroIfNull(a11.IVO_SEQ_NBR)) AS Char(5))) || trim(Cast((ZeroIfNull(a11.LCT_NBR)) AS Char(5))) || Cast((a11.CAL_DT) AS Char(10)) || Cast((a13.BUS_DT) AS Char(10))))) AS Integer) INVOICECOUNTPRODUCT
+					   FROM Lowes_VM.I0002G_IVO_DTL a11
+					   JOIN LOWES_VM.I0041A_ITM_HRC a12 ON (a11.ITM_NBR = a12.ITM_NBR)
+					   JOIN LOWES_VM.I0036K_FSC_CAL_CNV a13 ON (a11.BUS_DT = a13.BUS_DT)
+					   WHERE (a13.FSC_WK_END_DT BETWEEN DATE &M_FSC_QTR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3)
+					          AND a11.TNS_TYP_CD IN (1)
+					          AND (NOT a11.IVO_NBR = 1))
+					   GROUP BY a12.MER_DVS_NBR ) pa11
+					FULL OUTER JOIN
+					  (SELECT a14.MER_DVS_NBR MER_DVS_NBR,
+					          Cast((Count(Distinct(trim(Cast((ZeroIfNull(a11.IVO_NBR)) AS Char(10))) || trim(Cast((ZeroIfNull(a11.IVO_SEQ_NBR)) AS Char(5))) || trim(Cast((ZeroIfNull(a11.LCT_NBR)) AS Char(5))) || Cast((a11.CAL_DT) AS Char(10)) || Cast((a11.BUS_DT) AS Char(10))))) AS Integer) LYWEEKINVOICECOUNTPRODUCT
+					   FROM Lowes_VM.I0002G_IVO_DTL a11
+					   JOIN LOWES_VM.I0036K_FSC_CAL_CNV a12 ON (a11.BUS_DT = a12.BUS_DT)
+					   JOIN LOWES_VM.I0152A_TYL_FSC_WK a13 ON (a12.FSC_WK_END_DT = a13.LY_FSC_WK_END_DT)
+					   JOIN LOWES_VM.I0041A_ITM_HRC a14 ON (a11.ITM_NBR = a14.ITM_NBR)
+					   WHERE (a13.FSC_WK_END_DT BETWEEN DATE &M_FSC_QTR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3)
+					          AND a11.TNS_TYP_CD IN (1)
+					          AND (NOT a11.IVO_NBR = 1))
+					   GROUP BY a14.MER_DVS_NBR ) pa12 ON (pa11.MER_DVS_NBR = pa12.MER_DVS_NBR)
+					FULL OUTER JOIN
+					  (SELECT a12.MER_DVS_NBR MER_DVS_NBR,
+					          sum(a11.TOT_SAL_AMT) SALES
+					   FROM Lowes_VM.I0836A_WK_LCT_MSD_CMA_SAL_SMY a11
+					   JOIN LOWES_VM.I0044A_MER_SBO_DVS a12 ON (a11.MER_SBO_DVS_NBR = a12.MER_SBO_DVS_NBR)
+					   WHERE (a11.FSC_WK_END_DT BETWEEN DATE &M_FSC_QTR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3))
+					   GROUP BY a12.MER_DVS_NBR ) pa13 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR) = pa13.MER_DVS_NBR)
+					FULL OUTER JOIN
+					  (SELECT a13.MER_DVS_NBR MER_DVS_NBR,
+					          sum(a11.TOT_SAL_AMT) LYYEARSALES
+					   FROM Lowes_VM.I0836A_WK_LCT_MSD_CMA_SAL_SMY a11
+					   JOIN LOWES_VM.I0152A_TYL_FSC_WK a12 ON (a11.FSC_WK_END_DT = a12.LY_FSC_WK_END_DT)
+					   JOIN LOWES_VM.I0044A_MER_SBO_DVS a13 ON (a11.MER_SBO_DVS_NBR = a13.MER_SBO_DVS_NBR)
+					   WHERE (a12.FSC_WK_END_DT BETWEEN DATE &M_FSC_QTR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3))
+					   GROUP BY a13.MER_DVS_NBR ) pa14 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR, pa13.MER_DVS_NBR) = pa14.MER_DVS_NBR)
+					JOIN LOWES_VM.I0043A_MER_DVS a15 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR, pa13.MER_DVS_NBR, pa14.MER_DVS_NBR) = a15.MER_DVS_NBR)
+			);
+
+	disconnect from terapsa;
+
+quit;
+
+ 
+
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database=lowes_temp tdpid=terapsa);
+
+	create table QTR_Total as
+		select * from connection to terapsa
+			( 
+
+		select    
+						coalesce(pa11.FSC_WK_END_DT, pa12.FSC_WK_END_DT)  FSC_WK_END_DT,
+		                pa11.INVOICECOUNT  INVOICECOUNT,
+		                pa12.LYYEARINVOICECOUNT  LYYEARINVOICECOUNT,
+		                pa11.SALES  SALES,
+		                pa12.LYYEARSALES  LYYEARSALES
+		from      (select  a12.FSC_WK_END_DT  FSC_WK_END_DT,
+		                                sum(a11.CUS_CNT)  INVOICECOUNT,
+		                                sum(a11.TOT_SAL_AMT)  SALES
+		                from      LOWES_VM.I0366J_DAL_LCT_CUS_SAL_SMY     a11
+		                                join        LOWES_VM.I0036K_FSC_CAL_CNV         a12
+		                                  on         (a11.BUS_DT = a12.BUS_DT)
+		                where   (a12.FSC_WK_END_DT between DATE &M_FSC_QTR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+		                and a11.CRN_YR_CMA_LCT_CD in (3))
+		                group by              a12.FSC_WK_END_DT
+		                )              pa11
+		                full outer join     (select  a13.FSC_WK_END_DT  FSC_WK_END_DT,
+		                                sum(a11.CUS_CNT)  LYYEARINVOICECOUNT,
+		                                sum(a11.TOT_SAL_AMT)  LYYEARSALES
+		                from      LOWES_VM.I0366J_DAL_LCT_CUS_SAL_SMY     a11
+		                                join        LOWES_VM.I0036K_FSC_CAL_CNV         a12
+		                                  on         (a11.BUS_DT = a12.BUS_DT)
+		                                join        LOWES_VM.I0152A_TYL_FSC_WK            a13
+		                                  on         (a12.FSC_WK_END_DT = a13.LY_FSC_WK_END_DT)
+		                where   (a13.FSC_WK_END_DT between DATE &M_FSC_QTR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+		                and a11.CRN_YR_CMA_LCT_CD in (3))
+		                group by              a13.FSC_WK_END_DT
+		                )              pa12
+		                  on         (pa11.FSC_WK_END_DT = pa12.FSC_WK_END_DT)
+
+			);
+
+	disconnect from terapsa;
+
+quit;
+
+ 
+PROC SQL;
+CREATE TABLE QTR_DATA_TOTAL
+AS
+SELECT SUM(INVOICECOUNT) AS INVOICECOUNT ,
+	   SUM(LYYEARINVOICECOUNT)AS LYYEARINVOICECOUNT,
+       SUM(SALES) AS SALES,
+	  SUM(LYYEARSALES) AS LYYEARSALES,
+"Total" AS MER_DVS_DES_TXT
+from QTR_Total
+;
+QUIT;
+
+
+ 
+ 
+%MACRO CALC_METRICS(FREQ_TYPE);
+data opt_&FREQ_TYPE.(DROP= SALES  LYYEARLYSALES  );
+	set &FREQ_TYPE.;
+/*	format  Product_VAR  10.4*/
+/*		    INVOICECOUNT comma10.0 */
+/*		    LYYEARINVOICECOUNT comma10.0*/
+/*			TY_AVG_AMT 10.4*/
+/*			LY_AVG_AMT 10.4*/
+/*			TKT_AMT_VAR 10.4 */
+/*	;*/
+	Product_VAR = (INVOICECOUNT - LYYEARINVOICECOUNT ) / LYYEARINVOICECOUNT ;
+	TY_AVG_AMT =  SALES / INVOICECOUNT ;
+	LY_AVG_AMT =  LYYEARSALES / LYYEARINVOICECOUNT ;
+	TKT_AMT_VAR = (TY_AVG_AMT - LY_AVG_AMT ) / LY_AVG_AMT ;
+
+run;
+
+
+%MEND;
+
+%CALC_METRICS(QTR_DATA);
+%CALC_METRICS(QTR_DATA_TOTAL);
+proc sort data=opt_QTR_DATA ;
+by mer_dvs_des_txt;
+run;
+PROC APPEND  BASE=opt_QTR_DATA DATA= opt_QTR_DATA_TOTAL FORCE;
+RUN;
+/***************************** YEARLY ******************************************/;
+
+ 
+
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database=lowes_temp tdpid=terapsa);
+
+	create table YEAR_DATA as
+		select * from connection to terapsa
+			( 
+
+ 				SELECT DISTINCT 
+					                TRIM(BOTH ' '
+					                     FROM a15.MER_DVS_DES_TXT) MER_DVS_DES_TXT,
+					                pa11.INVOICECOUNTPRODUCT as INVOICECOUNT,
+					                pa12.LYWEEKINVOICECOUNTPRODUCT as LYYEARINVOICECOUNT,
+					                pa13.SALES as SALES,
+					                pa14.LYYEARSALES as LYYEARSALES
+					FROM
+					  (SELECT a12.MER_DVS_NBR MER_DVS_NBR,
+					          Cast((Count(Distinct(trim(Cast((ZeroIfNull(a11.IVO_NBR)) AS Char(10))) || trim(Cast((ZeroIfNull(a11.IVO_SEQ_NBR)) AS Char(5))) || trim(Cast((ZeroIfNull(a11.LCT_NBR)) AS Char(5))) || Cast((a11.CAL_DT) AS Char(10)) || Cast((a13.BUS_DT) AS Char(10))))) AS Integer) INVOICECOUNTPRODUCT
+					   FROM Lowes_VM.I0002G_IVO_DTL a11
+					   JOIN LOWES_VM.I0041A_ITM_HRC a12 ON (a11.ITM_NBR = a12.ITM_NBR)
+					   JOIN LOWES_VM.I0036K_FSC_CAL_CNV a13 ON (a11.BUS_DT = a13.BUS_DT)
+					   WHERE (a13.FSC_WK_END_DT BETWEEN DATE &M_FSC_YR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3)
+					          AND a11.TNS_TYP_CD IN (1)
+					          AND (NOT a11.IVO_NBR = 1))
+					   GROUP BY a12.MER_DVS_NBR ) pa11
+					FULL OUTER JOIN
+					  (SELECT a14.MER_DVS_NBR MER_DVS_NBR,
+					          Cast((Count(Distinct(trim(Cast((ZeroIfNull(a11.IVO_NBR)) AS Char(10))) || trim(Cast((ZeroIfNull(a11.IVO_SEQ_NBR)) AS Char(5))) || trim(Cast((ZeroIfNull(a11.LCT_NBR)) AS Char(5))) || Cast((a11.CAL_DT) AS Char(10)) || Cast((a11.BUS_DT) AS Char(10))))) AS Integer) LYWEEKINVOICECOUNTPRODUCT
+					   FROM Lowes_VM.I0002G_IVO_DTL a11
+					   JOIN LOWES_VM.I0036K_FSC_CAL_CNV a12 ON (a11.BUS_DT = a12.BUS_DT)
+					   JOIN LOWES_VM.I0152A_TYL_FSC_WK a13 ON (a12.FSC_WK_END_DT = a13.LY_FSC_WK_END_DT)
+					   JOIN LOWES_VM.I0041A_ITM_HRC a14 ON (a11.ITM_NBR = a14.ITM_NBR)
+					   WHERE (a13.FSC_WK_END_DT BETWEEN DATE &M_FSC_YR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3)
+					          AND a11.TNS_TYP_CD IN (1)
+					          AND (NOT a11.IVO_NBR = 1))
+					   GROUP BY a14.MER_DVS_NBR ) pa12 ON (pa11.MER_DVS_NBR = pa12.MER_DVS_NBR)
+					FULL OUTER JOIN
+					  (SELECT a12.MER_DVS_NBR MER_DVS_NBR,
+					          sum(a11.TOT_SAL_AMT) SALES
+					   FROM Lowes_VM.I0836A_WK_LCT_MSD_CMA_SAL_SMY a11
+					   JOIN LOWES_VM.I0044A_MER_SBO_DVS a12 ON (a11.MER_SBO_DVS_NBR = a12.MER_SBO_DVS_NBR)
+					   WHERE (a11.FSC_WK_END_DT BETWEEN DATE &M_FSC_YR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3))
+					   GROUP BY a12.MER_DVS_NBR ) pa13 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR) = pa13.MER_DVS_NBR)
+					FULL OUTER JOIN
+					  (SELECT a13.MER_DVS_NBR MER_DVS_NBR,
+					          sum(a11.TOT_SAL_AMT) LYYEARSALES
+					   FROM Lowes_VM.I0836A_WK_LCT_MSD_CMA_SAL_SMY a11
+					   JOIN LOWES_VM.I0152A_TYL_FSC_WK a12 ON (a11.FSC_WK_END_DT = a12.LY_FSC_WK_END_DT)
+					   JOIN LOWES_VM.I0044A_MER_SBO_DVS a13 ON (a11.MER_SBO_DVS_NBR = a13.MER_SBO_DVS_NBR)
+					   WHERE (a12.FSC_WK_END_DT BETWEEN DATE &M_FSC_YR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+					          AND a11.CRN_YR_CMA_LCT_CD IN (3))
+					   GROUP BY a13.MER_DVS_NBR ) pa14 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR, pa13.MER_DVS_NBR) = pa14.MER_DVS_NBR)
+					JOIN LOWES_VM.I0043A_MER_DVS a15 ON (coalesce(pa11.MER_DVS_NBR, pa12.MER_DVS_NBR, pa13.MER_DVS_NBR, pa14.MER_DVS_NBR) = a15.MER_DVS_NBR)
+			);
+
+	disconnect from terapsa;
+
+quit;
+
+
+ 
+ 
+
+proc sql;
+	connect to teradata as terapsa (user= "&tera_id." PASSWORD="&tera_pwd." database=lowes_temp tdpid=terapsa);
+
+	create table yr_data as
+		select * from connection to terapsa
+			( 
+
+		select    
+						coalesce(pa11.FSC_WK_END_DT, pa12.FSC_WK_END_DT)  FSC_WK_END_DT,
+		                pa11.INVOICECOUNT  INVOICECOUNT,
+		                pa12.LYYEARINVOICECOUNT  LYYEARINVOICECOUNT,
+		                pa11.SALES  SALES,
+		                pa12.LYYEARSALES  LYYEARSALES
+		from      (select  a12.FSC_WK_END_DT  FSC_WK_END_DT,
+		                                sum(a11.CUS_CNT)  INVOICECOUNT,
+		                                sum(a11.TOT_SAL_AMT)  SALES
+		                from      LOWES_VM.I0366J_DAL_LCT_CUS_SAL_SMY     a11
+		                                join        LOWES_VM.I0036K_FSC_CAL_CNV         a12
+		                                  on         (a11.BUS_DT = a12.BUS_DT)
+		                where   (a12.FSC_WK_END_DT between DATE &M_FSC_YR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+		                and a11.CRN_YR_CMA_LCT_CD in (3))
+		                group by              a12.FSC_WK_END_DT
+		                )              pa11
+		                full outer join     (select  a13.FSC_WK_END_DT  FSC_WK_END_DT,
+		                                sum(a11.CUS_CNT)  LYYEARINVOICECOUNT,
+		                                sum(a11.TOT_SAL_AMT)  LYYEARSALES
+		                from      LOWES_VM.I0366J_DAL_LCT_CUS_SAL_SMY     a11
+		                                join        LOWES_VM.I0036K_FSC_CAL_CNV         a12
+		                                  on         (a11.BUS_DT = a12.BUS_DT)
+		                                join        LOWES_VM.I0152A_TYL_FSC_WK            a13
+		                                  on         (a12.FSC_WK_END_DT = a13.LY_FSC_WK_END_DT)
+		                where   (a13.FSC_WK_END_DT between DATE &M_FSC_YR_BGN_DT. AND DATE &M_FSC_YR_END_DT.
+		                and a11.CRN_YR_CMA_LCT_CD in (3))
+		                group by              a13.FSC_WK_END_DT
+		                )              pa12
+		                  on         (pa11.FSC_WK_END_DT = pa12.FSC_WK_END_DT)
+
+			);
+
+	disconnect from terapsa;
+
+quit;
+
+ 
+PROC SQL;
+CREATE TABLE YEAR_DATA_TOTAL
+AS
+SELECT SUM(INVOICECOUNT) AS INVOICECOUNT ,
+	   SUM(LYYEARINVOICECOUNT)AS LYYEARINVOICECOUNT,
+       SUM(SALES) AS SALES,
+	  SUM(LYYEARSALES) AS LYYEARSALES,
+"Total" AS MER_DVS_DES_TXT
+from yr_data
+;
+QUIT;
+
+
+ 
+
+%MACRO CALC_METRICS(FREQ_TYPE);
+
+data opt_&FREQ_TYPE.(DROP= SALES  LYYEARLYSALES  );
+	set &FREQ_TYPE.;
+/*	format  Product_VAR  10.4*/
+/*		    INVOICECOUNT comma10.0 */
+/*		    LYYEARINVOICECOUNT comma10.0*/
+/*			TY_AVG_AMT 10.4*/
+/*			LY_AVG_AMT 10.4*/
+/*			TKT_AMT_VAR 10.4 */
+/*	;*/
+	Product_VAR = (INVOICECOUNT - LYYEARINVOICECOUNT ) / LYYEARINVOICECOUNT ;
+	TY_AVG_AMT =  SALES / INVOICECOUNT ;
+	LY_AVG_AMT =  LYYEARSALES / LYYEARINVOICECOUNT ;
+	TKT_AMT_VAR = (TY_AVG_AMT - LY_AVG_AMT ) / LY_AVG_AMT ;
+
+run;
+
+
+%MEND;
+
+%CALC_METRICS(YEAR_DATA);
+%CALC_METRICS(YEAR_DATA_TOTAL);
+proc sort data=opt_YEAR_DATA ;
+by mer_dvs_des_txt;
+run;
+PROC APPEND  BASE=opt_YEAR_DATA DATA= opt_YEAR_DATA_TOTAL FORCE;
+RUN; 
+/*************************************** SEND EMAIL **************************************/;
+
+ 
+ 
+proc format;
+ value cback low-0.0='light red' 
+	 		 0.0-high = 'light green';
+run;
+
+ODS _ALL_ CLOSE;
+ods tagsets.excelxp file="~/InvoiceCount_and_Average_Ticket.xls" 
+style=sasweb;
+ods tagsets.excelxp options(Center_Horizontal = 'no'
+							Embedded_Titles = 'yes' 
+							Embedded_Footnotes = 'yes' 
+							sheet_NAME = 'WTD'
+							AUTOFIT_HEIGHT ="YES"
+							absolute_column_width="25,17,17,15,17,17,20"
+							);
+
+Title1 JUSTIFY=left ITALIC COLOR=blue FONT=Arial HEIGHT=12pt
+"Week do date - Invoice & Average Ticket Size - for the Week ending &M_FSC_YR_END_DT.";
+
+Title2 JUSTIFY=left ITALIC COLOR=black FONT=Arial HEIGHT=9pt
+"Data range -";
+Title3 JUSTIFY=left ITALIC COLOR=black FONT=Arial HEIGHT=9pt
+ "&M_FSC_WK_BGN_DT. to &M_FSC_WK_END_DT";
+
+
+	PROC REPORT DATA=opt_WEEKLY_DATA NOWD;
+	COL MER_DVS_DES_TXT 
+
+		INVOICECOUNTPRODUCT
+		LYWEEKINVOICECOUNTPRODUCT
+		Product_VAR
+
+		TY_AVG_AMT 
+		LY_AVG_AMT
+		TKT_AMT_VAR
+ 	;
+
+	define  MER_DVS_DES_TXT / display  "Merchandise Division"  ;
+
+	define  INVOICECOUNTPRODUCT / display 'TY Invoice Count (Product)- #' style={tagattr='format:#,#'} ;
+	define  LYWEEKINVOICECOUNTPRODUCT / display 'LY Invoice Count (Product)- #' style={tagattr='format:#,#'}  ; 
+
+	define  Product_VAR / display "% Var to LY (Product)" style(column)={background=cback.} format=percent15.4 ;
+
+	define  TY_AVG_AMT / display "TY Average Ticket Amount (Product)- $" format=dollar15.4 ; 
+	define  LY_AVG_AMT / display "LY Average Ticket Amount (Product)- $"  format=dollar15.4 ;
+	define  TKT_AMT_VAR / display "% Var to LY    (Ticket Amount Product)" style(column)={background=cback.} format=percent15.4;
+
+
+Footnote "**Note: This data is based on INVOICE DATE, and will not necessarily tie back to the Flash Report due to timing**";
+RUN;
+ods tagsets.excelxp options(Center_Horizontal = 'no'
+							Embedded_Titles = 'yes' 
+							Embedded_Footnotes = 'yes' 
+							sheet_NAME = 'QTD'
+							AUTOFIT_HEIGHT ="YES"
+							absolute_column_width="25,17,17,15,17,17,20"
+);
+Title1 JUSTIFY=left ITALIC COLOR=blue FONT=Arial HEIGHT=12pt
+" Current QTR to data - Invoice & Average Ticket Size";
+Title2 JUSTIFY=left ITALIC COLOR=black FONT=Arial HEIGHT=9pt
+"Data range -";
+Title3 JUSTIFY=left ITALIC COLOR=black FONT=Arial HEIGHT=9pt
+ " &M_FSC_QTR_BGN_DT. to &M_FSC_YR_END_DT."; 
+	PROC REPORT DATA=opt_QTR_DATA NOWD;
+	COL
+		MER_DVS_DES_TXT 
+
+		INVOICECOUNT
+		LYYEARINVOICECOUNT 
+		Product_VAR
+
+		TY_AVG_AMT 	
+		LY_AVG_AMT
+		TKT_AMT_VAR
+ 	;
+
+	define  MER_DVS_DES_TXT / display  "Merchandise Division"  ;
+
+	define  INVOICECOUNT / display 'TY Invoice Count (Product)- #' style={tagattr='format:#,#'} ;
+	define  LYYEARINVOICECOUNT / display 'LY Invoice Count (Product)- #' style={tagattr='format:#,#'}  ; 
+
+	define  Product_VAR / display "% Var to LY (Product)" style(column)={background=cback.} format=percent15.4 ;
+
+	define  TY_AVG_AMT / display "TY Average Ticket Amount (Product)- $" format=dollar15.4 ; 
+	define  LY_AVG_AMT / display "LY Average Ticket Amount (Product)- $"  format=dollar15.4 ;
+	define  TKT_AMT_VAR / display "% Var to LY    (Ticket Amount Product)" style(column)={background=cback.} format=percent15.4;
+
+
+Footnote "**Note: This data is based on INVOICE DATE, and will not necessarily tie back to the Flash Report due to timing**";
+RUN;
+
+
+
+ods tagsets.excelxp options(Center_Horizontal = 'no'
+							Embedded_Titles = 'yes' 
+							Embedded_Footnotes = 'yes' 
+							sheet_NAME = 'YTD'
+							AUTOFIT_HEIGHT ="YES"
+							absolute_column_width="25,17,17,15,17,17,20"
+);
+Title1 JUSTIFY=left ITALIC COLOR=blue FONT=Arial HEIGHT=12pt
+" Year to data - Invoice & Average Ticket Size";
+Title2 JUSTIFY=left ITALIC COLOR=black FONT=Arial HEIGHT=9pt
+"Data range -";
+Title3 JUSTIFY=left ITALIC COLOR=black FONT=Arial HEIGHT=9pt
+ "&M_FSC_YR_BGN_DT. to &M_FSC_YR_END_DT."; 
+ 
+	PROC REPORT DATA=opt_YEAR_DATA NOWD;
+	COL
+		MER_DVS_DES_TXT 
+
+		INVOICECOUNT
+		LYYEARINVOICECOUNT 
+		Product_VAR
+
+		TY_AVG_AMT 	
+		LY_AVG_AMT
+		TKT_AMT_VAR
+ 	;
+
+	define  MER_DVS_DES_TXT / display  "Merchandise Division"  ;
+
+	define  INVOICECOUNT / display 'TY Invoice Count (Product)- #' style={tagattr='format:#,#'} ;
+	define  LYYEARINVOICECOUNT / display 'LY Invoice Count (Product)- #' style={tagattr='format:#,#'}  ; 
+
+	define  Product_VAR / display "% Var to LY (Product)" style(column)={background=cback.} format=percent15.4 ;
+
+	define  TY_AVG_AMT / display "TY Average Ticket Amount (Product)- $" format=dollar15.4 ; 
+	define  LY_AVG_AMT / display "LY Average Ticket Amount (Product)- $"  format=dollar15.4 ;
+	define  TKT_AMT_VAR / display "% Var to LY    (Ticket Amount Product)" style(column)={background=cback.} format=percent15.4;
+
+Footnote "**Note: This data is based on INVOICE DATE, and will not necessarily tie back to the Flash Report due to timing**";
+RUN;
+
+
+ods _all_ close;
+
+
+FILENAME NOTE EMAIL
+TO=("PraveenKumar.Segu@lowes.com" "Eshan.Jain@lowes.com" )
+SUBJECT ="[Weekly] - Flash Report Marketing"
+type="text/plain"
+attach= "~/InvoiceCount_and_Average_Ticket.xls"
+;
+
+
+DATA _NULL_;
+
+	FILE NOTE;
+
+	PUT " *** This is an Automated E-mail from SAS (Please don't reply to this) *** ";
+	PUT "-------------------------------------------------------------------------------------------";
+
+	PUT "Report Description :Flash Report Marketing provides details with the # Invoice and $ Average ticket amount and comparison(+/-) with last year same week / quarter / year by Merchandise Division.";
+	PUT "==================";
+	PUT " Data ranges - ";
+	PUT "==================";
+	PUT	"WEEK_START_DATE =  &M_FSC_WK_BGN_DT.   between  WEEK_END_DATE   =  &M_FSC_WK_END_DT. ";
+
+	PUT	"QTR_START_DATE =   &M_FSC_QTR_BGN_DT.   between  QTR_END_DATE   =  &M_FSC_WK_END_DT. ";
+
+	PUT  "YEAR_START_DATE =  &M_FSC_YR_BGN_DT.  between YEAR_END_DATE   =  &M_FSC_YR_END_DT.  ";
+	PUT "------------------------------------------------------------------------------------------";
+	PUT " For more details on this email/report please contact Praveen Kumar Segu - ADO ";
+	PUT  " Thank you!";	
+
+RUN;
+
+/*****************************************END *************************************;
+
